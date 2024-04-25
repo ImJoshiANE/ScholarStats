@@ -1,0 +1,132 @@
+.container{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.profile-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 50px;
+}
+
+:root {
+  --green: #58a497;
+  --yellow: #e09449;
+  --lightgreen1: #a4bdb7;
+  --brown: #8b4448;
+  --gray: gray;
+  --lightgreen2: rgb(164, 189, 183, 0.5);
+  --box: #ededed;
+}
+
+.box {
+  width: 350px;
+  height: fit-content;
+  border-radius: 20px;
+  padding: 10px;
+  text-align: center;
+  background: #ededed;
+  margin-top: 10px;
+}
+
+.content {
+  margin: 15px 2px;
+}
+
+.image img {
+  height: auto;
+  width: 120px;
+  border-radius: 50%;
+
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 5px;
+}
+
+.name {
+  font-size: 1.25em;
+  font-weight: bolder;
+  color: black;
+  letter-spacing: 1px;
+}
+
+.job_title {
+  font-size: 0.65em;
+  font-weight: bolder;
+  color: gray;
+  margin-top: -2px;
+}
+
+.job_discription {
+  font-size: 0.7em;
+  color: gray;
+  margin: 10px 30px 20px;
+}
+
+.profile-btn {
+  width: 110px;
+  height: 35px;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.button {
+  display: flex;
+  justify-content: space-around;
+  flex-direction: row;
+  margin: 50px 30px 0px;
+}
+
+.button .message {
+  width: 125px;
+  background: #ededed;
+  border: 2px solid #000;
+  color: black;
+}
+
+.button .connect {
+  background-color: #000;
+  color: #ededed;
+  border: none;
+}
+button.connect:hover {
+  letter-spacing: 1px;
+  transition: 0.5s;
+}
+button.message:hover {
+  letter-spacing: 1px;
+  transition: 0.5s;
+  background: rgba(88, 164, 151, 0.5);
+}
+
+/* Responsiveness:Start */
+@media screen and (max-width: 480px) {
+  .box {
+    width: 100vw;
+    border-radius: 0px;
+  }
+  .button {
+    display: flex;
+    flex-direction: column;
+  }
+  .button .profile-btn {
+    width: 250px;
+  }
+  button.connect {
+    margin-top: 10px;
+  }
+  .content2 {
+    padding: 0px 20px;
+  }
+  .content2 img {
+    width: 60px;
+    height: 60px;
+  }
+}
+/* Responsiveness:End */

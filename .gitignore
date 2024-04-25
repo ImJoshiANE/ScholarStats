@@ -1,0 +1,24 @@
+# Node.js and NPM
+node_modules/
+npm-debug.log
+
+# Express.js log files
+logs/
+*.log
+
+# React build files
+/build/
+
+# Dependency lock files
+yarn.lock
+package-lock.json
+
+# Environment variables (store secrets elsewhere)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Visual Studio Code settings (optional)
+.vscode/
