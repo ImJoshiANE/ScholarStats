@@ -4,6 +4,10 @@ const bcrypt = require("bcrypt");
 
 // Define User schema
 const userSchema = new mongoose.Schema({
+  gsId: {
+    type: String,
+    required: true,
+  },
   name: {
     type: String,
     required: true,
@@ -16,10 +20,9 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  gsId: {
-    type: String,
-    required: true,
-    ref: "ScholarData",
+  researchData: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ResearchData'
   },
 });
 

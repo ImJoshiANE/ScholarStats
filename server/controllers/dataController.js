@@ -1,102 +1,180 @@
 // ---------- External Imports ----------
-const puppeteer = require('puppeteer');
-const { Parser } = require('json2csv');
-const fs = require('fs');
+const cheerio = require("cheerio");
+const axios = require("axios");
+const { Parser } = require("json2csv");
+const fs = require("fs");
 
 // ---------- Internal Imports ----------
-const {makeUrl} = require("../utils/makeUrl");
+const Publications = require("../models/Publications");
+const ResearchData = require("../models/ResearchData");
+const { makeUrl } = require("../utils/makeUrl");
+const catchAsync = require("../utils/catchAsync");
 
-exports.fetchData = async (req, res, err) => {
-    const gsId = req.body.gsId;
-    const url = makeUrl(gsId);
+// Call this function to apply "cheerio-scraping" to the profile page and get the metadata
+const fetchPublicationMetaData = async (url, gsId) => {
+  const response = await axios.get(url);
+  const $ = cheerio.load(response.data);
 
-    // opening the browser
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
+  const articles = $("a.gsc_a_at")
+    .map((index, element) => $(element).attr("href"))
+    .get();
+  const titles = $("a.gsc_a_at")
+    .map((index, element) => $(element).text())
+    .get();
+  const citationYear = $("span.gsc_g_t")
+    .map((index, element) => $(element).text())
+    .get();
+  const citationCountPerYear = $("span.gsc_g_al")
+    .map((index, element) => $(element).text())
+    .get();
+  const citationsData = $("tr > td.gsc_rsb_std:nth-child(2)")
+    .map((index, element) => $(element).text())
+    .get();
 
-    await page.goto(url);
-    const scholarArticles = await page.evaluate(() => {
-      // Use JavaScript to extract data from the page
-      const articles = Array.from(document.querySelectorAll('a.gsc_a_at')).map(a => a.href);
-      const titles = Array.from(document.querySelectorAll('a.gsc_a_at')).map(a => a.textContent);
-      return {titles, articles}
-    });
+  return {
+    titles,
+    articles,
+    citationYear,
+    citationCountPerYear,
+    citationsData,
+  };
+};
 
-    // console.log(scholarArticles);
+// Call this function to fetch publication data from the article page
+const fetchPublicationData = async (url) => {
+  try {
+    const response = await axios.get(url);
+    const $ = cheerio.load(response.data);
 
-    // console.log(scholarArticles);
-    const journalDataField = ['Title', 'Authors', 'Publication date', 'Journal', 'Volume', 'Issue', 'Pages', 'Publisher', 'Description'];
-    const journalData = [];
+    const attributes = $("div.gsc_oci_field")
+      .map((index, element) => $(element).text())
+      .get();
+    const values = $("div.gsc_oci_value")
+      .map((index, element) => $(element).text())
+      .get();
 
-    const conferenceDataField = ['Title', 'Authors', 'Publication date', 'Conference', 'Pages', 'Publisher', 'Description'];
-    const conferenceData = [];
+    attributes.push("Total Citations");
+    values.push($("div.gsc_oci_value > div > a").text());
 
-    for(let i=0; i<scholarArticles.articles.length; i++){
-      await page.goto(scholarArticles.articles[i]);
+    return { attributes, values };
+  } catch (error) {
+    console.error("Error fetching publication data:", error);
+    return null;
+  }
+};
 
-      const publicationData = await page.evaluate( () =>{
-        const attributes = Array.from(document.querySelectorAll('div.gsc_oci_field')).map(div => div.textContent);
-        const values = Array.from(document.querySelectorAll('div.gsc_oci_value')).map(div => div.textContent);
+// Call this to prepare publication
+const preparePublication = (publicationData) => {
+  const singlePublication = {};
 
-        return {attributes, values};
-      });
+  const { attributes, values } = publicationData;
+  let isJournal = true;
 
-      const {attributes, values} = publicationData;
-      let isJournal = true;
-      const obj = {};
-      obj["Title"] = scholarArticles.titles[i];
+  for (let i = 0; i < attributes.length; i++) {
+    if (attributes[i] == "Scholar articles" || attributes[i] == undefined)
+      continue;
+    if (attributes[i] == "Conference") isJournal = false;
+    singlePublication[attributes[i]] = values[i];
+  }
 
-      for(let i=0; i<attributes.length; i++){
-        if(attributes[i]=='Total citations' || attributes[i]=='Scholar articles' || attributes[i]==undefined) continue;
-        if(attributes[i]=='Conference') isJournal = false;
-        obj[attributes[i]] = values[i];
-      }
+  if (isJournal) singlePublication["Type"] = "Journal";
+  else singlePublication["Type"] = "Conference";
 
-      if(isJournal) journalData.push(obj);
-      else conferenceData.push(obj);
+  return singlePublication;
+};
+
+// Convert data to CSV and save it to the file and update link in the database
+const convertToCsvAndSave = async (gsId, publication, publicationDataField) => {
+  let json2csvParser = new Parser({ publicationDataField });
+
+  const publicationDataCSV = json2csvParser.parse(
+    publication.map((item) => item)
+  );
+
+  let filePath = `./public/publications_${gsId}.csv`;
+
+  fs.writeFile(filePath, publicationDataCSV, (err) => {
+    if (err) {
+      console.error("Error saving CSV file:", err);
     }
+  });
+};
 
-    console.log(journalData);
-    console.log(conferenceData);
+// call this function to create object from keys and values arrays
+function createObject(keys, values) {
+  const result = {};
 
-    // Converting to CSV -- Journal Data and saving it.
-    let json2csvParser = new Parser({ journalDataField });
-    const journalDatacsv = json2csvParser.parse(journalData.map((item) => {
-      const obj = {};
-      for(let i=0; i<journalDataField.length; i++){
-        obj[journalDataField[i]] = item[journalDataField[i]] || "N/A";
-      }
-      return obj;
-    }));
+  // Iterate over the keys array
+  keys.forEach((key, index) => {
+    // Add key-value pair to the result object
+    result[key] = values[index];
+  });
 
-    let filePath = `./csvdata/journal_data_${gsId}.csv`;
-    fs.writeFile(filePath, journalDatacsv, (err) => {
-      if (err) {
-        console.error('Error saving CSV file:', err);
-      } else {
-        console.log('CSV file saved successfully:', filePath);
-      }
-    });
-
-    // Converting to CSV -- Conference Data and saving it
-    json2csvParser = new Parser({ conferenceDataField });
-    const conferenceDatacsv = json2csvParser.parse(conferenceData.map((item) => {
-      const obj = {};
-      for(let i=0; i<conferenceDataField.length; i++){
-        obj[conferenceDataField[i]] = item[conferenceDataField[i]] || "N/A";
-      }
-      return obj;
-    }));
-
-    filePath = `./csvdata/conference_data_${gsId}.csv`;
-    fs.writeFile(filePath, conferenceDatacsv, (err) => {
-      if (err) {
-        console.error('Error saving CSV file:', err);
-      } else {
-        console.log('CSV file saved successfully:', filePath);
-      }
-    });
-
-    // closing the browser
-    await browser.close();
+  return result;
 }
+
+// Handler for /user/fetchData
+exports.fetchData = async (req, res, err) => {
+  const gsId = req.body.gsId;
+  const url = makeUrl(gsId);
+
+  const scholarArticles = await fetchPublicationMetaData(url, gsId);
+
+  const publicationDataField = [
+    "Title",
+    "Authors",
+    "Publication date",
+    "Type",
+    "Volume",
+    "Issue",
+    "Pages",
+    "Publisher",
+    "Description",
+    "Total Citations",
+  ];
+
+  const publications = [];
+
+  for (let i = 0; i < scholarArticles.articles.length; i++) {
+    const publicationUrl =
+      "https://scholar.google.com/" + scholarArticles.articles[i];
+    const publicationData = await fetchPublicationData(publicationUrl);
+
+    const singlePublication = preparePublication(publicationData);
+    singlePublication["Title"] = scholarArticles.titles[i];
+
+    const obj = {};
+    for (let i = 0; i < publicationDataField.length; i++) {
+      obj[publicationDataField[i]] =
+        singlePublication[publicationDataField[i]] || "N/A";
+    }
+    publications.push(obj);
+  }
+
+  convertToCsvAndSave(gsId, publications, publicationDataField);
+  const downloadUrl = process.env.DOMAIN_NAME;
+  +`/publications_${gsId}.csv`;
+
+  // console.log(publications);
+
+  const publicationsInstance = await Publications.create({
+    gsId: gsId,
+    publications: publications,
+  }); // Save the data to the database
+
+  await ResearchData.create({
+    gsId: gsId,
+    citationsCount: scholarArticles.citationsData[0],
+    hIndex: scholarArticles.citationsData[1],
+    iIndex: scholarArticles.citationsData[2],
+    papersCount: publications.length,
+    citationsPerYear: createObject(scholarArticles.citationYear, scholarArticles.citationCountPerYear),
+    publications: publicationsInstance._id,
+  });
+
+  const researchInstance = await ResearchData.findOne({ gsId: gsId }).populate('publications').exec();
+
+  res.status(200).json({
+    researchInstance
+  });
+};

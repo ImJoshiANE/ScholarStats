@@ -26,6 +26,7 @@ mongoose
 
 
 // ---------- Middlewares ----------
+app.use(express.static('public'))
 app.use(cors());
 // if(process.env.NODE_ENV === 'development') app.use(morgan('dev'));  // Use of Morgan middleware for logging
 app.use(express.json()); // Middleware to parse JSON-encoded request body -- express.json({limit:'50KB'})

@@ -12,6 +12,10 @@ const router = express.Router();
 // } = require("../controllers/authController");
 
 const {
+  fetchData
+} = require("../controllers/dataController");
+
+const {
     signup,
     login,
   } = require("../controllers/userController");
@@ -20,6 +24,7 @@ const {
 
 router.post("/signup", signup);
 router.post("/login", login);
+router.post("/fetchData", fetchData);
 // router.get("/", checkUserBody, signup);
 // router.post("/login", login);
 // router.post("/forgotPassword", forgotPassword);
