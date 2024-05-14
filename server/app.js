@@ -24,19 +24,18 @@ mongoose
   .catch((err) => console.log(err));
 
 
-
 // ---------- Middlewares ----------
 app.use(express.static('public'))
 app.use(cors());
 // if(process.env.NODE_ENV === 'development') app.use(morgan('dev'));  // Use of Morgan middleware for logging
 app.use(express.json()); // Middleware to parse JSON-encoded request body -- express.json({limit:'50KB'})
 
-// // ---------- Rate Limiting ----------
-// const limiter = rateLimit({
-//     windowMs: 15 * 60 * 1000, // 15 minutes
-//     max: 100, // limit each IP to 100 requests per windowMs
-// });
-// app.use(limiter); // Apply rate limiter to all requests
+// ---------- Rate Limiting ----------
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+});
+app.use(limiter); // Apply rate limiter to all requests
 
 
 

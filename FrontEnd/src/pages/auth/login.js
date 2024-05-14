@@ -31,7 +31,7 @@ const Page = () => {
     },
     validationSchema: Yup.object({
       email: Yup.string().email("Must be a valid email").max(255).required("Email is required"),
-      password: Yup.string().max(255).required("Password is required"),
+      password: Yup.string().min(8).max(255).required("Password is required"),
     }),
     onSubmit: async (values, helpers) => {
       try {
